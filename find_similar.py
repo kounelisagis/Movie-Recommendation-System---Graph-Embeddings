@@ -30,13 +30,12 @@ num_vec = [float(i) for i in vec]
 
 
 from scipy import spatial
-mmax = -2
-target = ""
+results = []
 for i in range(len(vectors)):
     result = 1 - spatial.distance.cosine(num_vec, vectors[i])
-    if result > mmax and movies[i] != movie:
-        mmax = result
-        target = movies[i]
+    if movies[i] != movie:
+        results.append((movies[i], result))
 
-print(target)
-print(mmax)
+results.sort(key=lambda tup: tup[1], reverse=True)
+
+print(results[:10])

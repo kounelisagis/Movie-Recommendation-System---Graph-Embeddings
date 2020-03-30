@@ -11,17 +11,12 @@ from karateclub import Graph2Vec
 nlp = spacy.load("en_core_web_sm", disable=["tagger", "parser"])
 
 read_path = "3.metadata"
-const = 0.3
+write_path = "4.embeddings"
 
-graphs = []
-movies = []
+weight_step = 1
 
-counter = 0
 
 def create_graph(movie):
-
-    movies.append(movie)
-
     read_path2 = "3.metadata\\" + movie
     with open(read_path2, encoding="utf8") as opened_file:
         read_data = opened_file.read()
@@ -59,8 +54,8 @@ def create_graph(movie):
     for expected_characters_in_scene in expected_characters_per_scene:
         shown_in_scene = []
         for expected_character in expected_characters_in_scene:
-            result = process.extractOne(expected_character, characters)
-            if result is not None and result[1] > 80:
+            result = process.extractOne(expected_character, characters, score_cutoff = 80)
+            if result is not None:
                 index = characters.index(result[0])
                 if index not in shown_in_scene:
                     shown_in_scene.append(index)
@@ -69,44 +64,69 @@ def create_graph(movie):
             for index2 in shown_in_scene:
                 if index1 != index2:
                     if G.has_edge(index1,index2):
-                        G[index1][index2]['weight'] += const
+                        G[index1][index2]["weight"] += weight_step
                     else:
-                        G.add_edge(index1, index2, weight=const)
+                        G.add_edge(index1, index2, weight= weight_step)
 
     # Remove vertices with degree = 0
+
+    weights_sum = G.size(weight="weight")
+
+    contributions = []
+
+    for (n, val) in G.degree(weight="weight"):
+        label = round(val/weights_sum, 1)
+        G.nodes[n]["feature"] = label
+        contributions.append(label)
+
     G.remove_nodes_from(list(nx.isolates(G)))
 
+    return G, [characters[i] + ": " + str(contributions[i]) for i in range(len(characters))]
+
+def draw_graph(G, labels):
     # Get the Graph weights
-    weights = [G[u][v]['weight'] for u, v in G.edges() if u != v]
+    width_multiplier = 50/G.size(weight="weight")
+
+    weights = [G[u][v]["weight"]*width_multiplier for u, v in G.edges() if u != v]
 
     # Position nodes using Fruchterman-Reingold force-directed algorithm
     pos = nx.spring_layout(G)
 
-
     nx.draw_networkx_nodes(G, pos, cmap=plt.get_cmap('jet'), node_size=500)
-    nx.draw_networkx_labels(G, pos, font_color='red', labels={node:characters[node] for node in G.nodes()})
+    nx.draw_networkx_labels(G, pos, font_color='red', labels={node:labels[node] for node in G.nodes()})
     nx.draw_networkx_edges(G, pos, alpha=0.7, width=weights)
 
     plt.show()
 
-    return G
-
-
 def extract_embeddings():
+    movies = []
+    graphs = []
+    counter = 0
+    fails = []
+    
     for r, d, f in os.walk(read_path):
         for movie in f:
             counter += 1
-            print(counter)
+            if counter == 20:
+                break
+            print(str(counter) + " - " + movie )
 
-            graphs.append(create_graph(movie))
+            try:
+                G, _ = create_graph(movie)
+                graphs.append(G)
+                movies.append(movie)
+            except Exception as e:
+                print(e)
+                print(movie)
+                fails.append(movie)
 
 
-    model = Graph2Vec()
+    # wl = 1, check for vertex label and the neighbours similarity
+    # min = 2, count even the one similarity
+    model = Graph2Vec(attributed=True, wl_iterations=1, min_count=2)
     model.fit(graphs)
     X = model.get_embedding()
 
-
-    write_path = "4.embeddings"
 
     for i in range(len(movies)):
         try:
@@ -116,8 +136,13 @@ def extract_embeddings():
             outfile.close()
         except Exception as e:
             print(e)
+    
+    print(fails)
 
 
 # Main Program
 
-create_graph("Purple-Rain.txt")
+# extract_embeddings()
+
+G, labels = create_graph("Interstellar.txt")
+draw_graph(G, labels)
