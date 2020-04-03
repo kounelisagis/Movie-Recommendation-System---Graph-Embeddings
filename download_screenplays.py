@@ -1,12 +1,15 @@
 import os
-from urllib.parse import quote
-
-from bs4 import BeautifulSoup
 import requests
+from urllib.parse import quote
+from bs4 import BeautifulSoup
+from multiprocessing.dummy import Pool
+from multiprocessing import cpu_count
+import pandas as pd
+
 
 BASE_URL = 'http://www.imsdb.com'
-SCRIPTS_DIR = '1.scripts'
-
+SCRIPTS_DIR = 'data\\screenplays'
+CSV_NAME = "data\\data.csv"
 
 def clean_script(text):
     text = text.replace('Back to IMSDb', '')
@@ -47,21 +50,55 @@ def get_script(relative_link):
         return None, None
 
 
+def process_task(paragraph):
+    try:
+        relative_link = paragraph.a['href']
+        title, script = get_script(relative_link)
+        if not (script and ('INT' in script or 'EXT' in script)):
+            return None
+
+        filename = title.strip('.html') + '.txt'
+
+        with open(os.path.join(SCRIPTS_DIR, filename), 'w', encoding="utf-8") as outfile:
+            outfile.write(script)
+    
+        outfile.close()
+
+        return filename
+
+    except Exception as e:
+        print(e)
+        return None
+
+
 if __name__ == "__main__":
+    
     response = requests.get('http://www.imsdb.com/all%20scripts/')
     html = response.text
 
     soup = BeautifulSoup(html, "html.parser")
     paragraphs = soup.find_all('p')
 
-    for p in paragraphs:
-        try:
-            relative_link = p.a['href']
-            title, script = get_script(relative_link)
-            if not script:
-                continue
+    with Pool(10) as p:
+        results = p.map(process_task, paragraphs)
+    
+    filenames = [x for x in results if x is not None]
+    movienames = []
 
-            with open(os.path.join(SCRIPTS_DIR, title.strip('.html') + '.txt'), 'w', encoding="utf-8") as outfile:
-                outfile.write(script)
-        except Exception as e:
-            print(e)
+    for filename in filenames:
+        if ",-The" in filename:
+            filename = "The-" + filename.replace(",-The", "")
+        if ",-A" in filename:
+            filename = "A-" + filename.replace(",-A", "")
+
+        filename = filename.replace(".txt", "")
+        filename = filename.replace("-", " ")
+
+        movienames.append(filename)
+
+
+    df = pd.DataFrame(list(zip(movienames, filenames)), columns = ['movie_name', 'filename'])
+
+    df.to_csv(CSV_NAME, encoding='utf-8', index=False)
+
+    print(sum(x is None for x in results))
