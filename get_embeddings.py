@@ -125,14 +125,15 @@ def extract_embeddings(data):
 
     # wl = 1, check for vertex label and the neighbours similarity
     # min = 1, don't drop any labels
-    model = Graph2Vec(attributed=True, wl_iterations=1, min_count=1)
+    # 6 ~= sqrt(30) [(1+2)*10]
+    model = Graph2Vec(attributed=True, dimensions=6, wl_iterations=2, min_count=1)
     model.fit(graphs)
 
     X = [[str(y) for y in x] for x in model.get_embedding()]
 
     data_out = [results[i][2] + (';'.join(X[i]),) for i in range(len(results))]
 
-    df_out = pd.DataFrame(data_out, columns = ['movie_name', 'filename', 'tmdb_id', 'characters', 'vector'])
+    df_out = pd.DataFrame(data_out, columns = ['movieName', 'fileName', 'tmdbId', 'characters', 'vector'])
 
     df_out.to_csv(CSV_OUT, encoding='utf-8', index=False)
 
@@ -144,7 +145,7 @@ if __name__ == "__main__":
 
     # extract_embeddings(data)
 
-    target_movie_name = "Interstellar"
+    target_movie_name = "Capote"
 
     for movie in data:
         if movie[0] == target_movie_name:

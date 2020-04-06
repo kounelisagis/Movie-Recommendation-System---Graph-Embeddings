@@ -18,20 +18,20 @@ CSV_OUT = "data\\data2.csv"
 
 
 def process_task(row):
-    movie_name = row[0]
+    movieName = row[0]
     filename = row[1]
 
     try:
-        movies_list = movie.search(movie_name)
+        movies_list = movie.search(movieName)
         if len(movies_list) == 0:
-            temp_movie_name = re.sub(r'\(.+?\)\s*', '', movie_name)
-            movies_list = movie.search(temp_movie_name)
+            temp_movieName = re.sub(r'\(.+?\)\s*', '', movieName)
+            movies_list = movie.search(temp_movieName)
 
         movies_list.sort(key=lambda x: x.popularity, reverse=True)
 
-        tmdb_id = movies_list[0].id
+        tmdbId = movies_list[0].id
 
-        cast_list = (movie.credits(tmdb_id)).cast
+        cast_list = (movie.credits(tmdbId)).cast
 
         topCharacters = min(10, len(cast_list))
 
@@ -42,10 +42,10 @@ def process_task(row):
         #         write_file.write(actor["character"]+"\n")
         
         # write_file.close() 
-        return (movie_name, filename, tmdb_id, [actor["character"] for actor in cast_list[:topCharacters]])
+        return (movieName, filename, tmdbId, [actor["character"] for actor in cast_list[:topCharacters]])
 
     except Exception as e:
-        print(movie_name)
+        print(movieName)
         print(e)
         return None
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     results = [x[:-1] + (";".join(x[-1]),) for x in results if x is not None]
 
-    df_out = pd.DataFrame(results, columns = ['movie_name', 'filename', 'tmdb_id', 'characters'])
+    df_out = pd.DataFrame(results, columns = ['movieName', 'fileΝame', 'tmdbId', 'characters'])
 
     df_out.to_csv(CSV_OUT, encoding='utf-8', index=False)
 

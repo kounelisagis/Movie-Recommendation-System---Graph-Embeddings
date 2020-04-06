@@ -97,7 +97,7 @@ if __name__ == "__main__":
         movienames.append(filename)
 
 
-    df = pd.DataFrame(list(zip(movienames, filenames)), columns = ['movie_name', 'filename'])
+    df = pd.DataFrame(list(zip(movienames, filenames)), columns = ['movieName', 'fileΝame'])
 
     df.to_csv(CSV_NAME, encoding='utf-8', index=False)
 
