@@ -43,8 +43,8 @@ class MyOwnAlgorithm(AlgoBase):
             movies_vectors = [[float(vector_str) for vector_str in vectors_str.split(";")] for vectors_str in user_df['vector'].tolist()]
 
 
-            sum_vector = [0.0 for _ in range(8)]
-            for (movie_vector, score) in zip(movies_vectors, user_scores): 
+            sum_vector = [0.0 for _ in range(len(movies_vectors[0]))]
+            for (movie_vector, score) in zip(movies_vectors, user_scores):
                 sum_vector = [x + y*score for x, y in zip(sum_vector, movie_vector)]
                 weights_sum += score
             
@@ -70,8 +70,9 @@ class MyOwnAlgorithm(AlgoBase):
         movie_vector = [float(x) for x in movie_df.iloc[0]["vector"].split(";")]
 
         result = 1 - spatial.distance.cosine(self.mean_vectors[u], movie_vector)
+        result = 2.25*result + 2.75 # from [-1, 1] to [0.5, 5]
 
-        return (result+1)*2.5
+        return round(result*2)/2 # round to the nearest .5
 
 
 
