@@ -9,7 +9,7 @@ import pandas as pd
 
 BASE_URL = 'http://www.imsdb.com'
 SCRIPTS_DIR = 'data\\screenplays'
-CSV_NAME = "data\\data.csv"
+CSV_NAME = "data\\data1.csv"
 
 def clean_script(text):
     text = text.replace('Back to IMSDb', '')
@@ -64,7 +64,7 @@ def process_task(paragraph):
     
         outfile.close()
 
-        return filename
+        return filename.replace(".txt", "")
 
     except Exception as e:
         print(e)
@@ -91,7 +91,6 @@ if __name__ == "__main__":
         if ",-A" in filename:
             filename = "A-" + filename.replace(",-A", "")
 
-        filename = filename.replace(".txt", "")
         filename = filename.replace("-", " ")
 
         movienames.append(filename)
