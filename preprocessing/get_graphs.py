@@ -3,17 +3,18 @@ import re
 import spacy
 from fuzzywuzzy import process
 import networkx as nx
+from networkx.readwrite import json_graph
 import matplotlib.pyplot as plt
-from karateclub import Graph2Vec
 from multiprocessing.dummy import Pool
 from multiprocessing import cpu_count
 import pandas as pd
+import json
 
 
 nlp = spacy.load("en_core_web_lg", disable=["tagger", "parser"])
 
 WEIGHT_STEP = 1
-SCRIPTS_DIR = 'data\\screenplays'
+SCRIPTS_DIR = "data\\screenplays"
 CSV_IN = "data\\data2.csv"
 CSV_OUT = "data\\data3.csv"
 
@@ -24,7 +25,7 @@ def create_graph(data):
 
         characters = re.split(';', data[3])
 
-        with open(SCRIPTS_DIR + "\\" + filename, encoding="utf8") as opened_file:
+        with open(SCRIPTS_DIR + "\\" + filename + ".txt", encoding="utf8") as opened_file:
             read_data = opened_file.read()
         opened_file.close()
 
@@ -88,12 +89,24 @@ def create_graph(data):
 
         G.remove_nodes_from(list(nx.isolates(G)))
 
-        return (G, [characters[i] + ": " + str(contributions[i]) for i in range(len(characters))], data)
+        if len(G) == 0 or (not nx.is_connected(G)):
+            return None
+
+        labels = [characters[i] + ": " + str(contributions[i]) for i in range(len(characters))]
+
+        return (G, labels, data)
 
     except Exception as e:
         print(e)
         print(filename)
         return None
+
+
+def save_graphs(graphs):
+    for graph in graphs:
+        filename_out = graph[2][1]
+        with open("data\\graphs\\" + filename_out + ".json", 'w', encoding='utf-8') as f:
+            json.dump(json_graph.node_link_data(graph[0]), f)
 
 
 def draw_graph(G, labels):
@@ -112,42 +125,21 @@ def draw_graph(G, labels):
     plt.show()
 
 
-def extract_embeddings(data):
+if __name__ == "__main__":
 
-    with Pool(8) as p:
-        results = p.map(create_graph, data)
+    df_in = pd.read_csv(CSV_IN, encoding='utf-8')
+    data_in = list(df_in.itertuples(index=False))
 
-    results = [x for x in results if x is not None]
+    with Pool(18) as p:
+        results = p.map(create_graph, data_in)
 
-    graphs = [result[0] for result in results]
+    graphs = [x for x in results if x is not None]
 
-    print("end of graph extraction")
+    save_graphs(graphs)
 
-    # wl = 1, check for vertex label and the neighbours similarity
-    # min = 1, don't drop any labels
-    # 6 ~= sqrt(30) [(1+2)*10]
-    model = Graph2Vec(attributed=True, dimensions=6, wl_iterations=2, min_count=1)
-    model.fit(graphs)
+    data_out = [graph[2] for graph in graphs]
 
-    X = [[str(y) for y in x] for x in model.get_embedding()]
-
-    data_out = [results[i][2] + (';'.join(X[i]),) for i in range(len(results))]
-
-    df_out = pd.DataFrame(data_out, columns = ['movieName', 'fileName', 'tmdbId', 'characters', 'vector'])
+    df_out = pd.DataFrame(data_out, columns=['movieName', 'fileName', 'tmdbId', 'characters'])
 
     df_out.to_csv(CSV_OUT, encoding='utf-8', index=False)
 
-
-if __name__ == "__main__":
-
-    df_in = pd.read_csv(CSV_IN)
-    data = list(df_in.itertuples(index=False))
-
-    # extract_embeddings(data)
-
-    target_movie_name = "Capote"
-
-    for movie in data:
-        if movie[0] == target_movie_name:
-            result = create_graph(movie)
-            draw_graph(result[0], result[1])
